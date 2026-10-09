@@ -218,3 +218,22 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Datasets (STSD raw zip + extracted data, ~170 GB)
+data/
+
+# ---- STSD-SSL policy: track code + README only ----
+*.md
+!README.md
+docs/
+reports/
+papers/
+research_notes/
+notebooks/
+*.pdf
+exp/
+runs/
+wandb/
+*.sif
+*.pth
+weights/

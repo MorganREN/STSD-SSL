@@ -1,0 +1,51 @@
+# STSD-SSL environment, aligned with Pointcept's official environment.yml
+# (PyTorch 2.5.0 + CUDA 12.4). Extra steps after creation: see README.md.
+name: stsd-ssl
+channels:
+  - pyg
+  - pytorch
+  - nvidia/label/cuda-12.4.1
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - cuda
+  - conda-forge::cudnn
+  - gcc=13.2
+  - gxx=13.2
+  - pytorch=2.5.0
+  - torchvision=0.20.0
+  - torchaudio=2.5.0
+  - pytorch-cuda=12.4
+  - ninja
+  - h5py
+  - pyyaml
+  - tensorboard
+  - tensorboardx
+  - wandb
+  - yapf
+  - addict
+  - einops
+  - scipy
+  - plyfile
+  - termcolor
+  - timm
+  - tqdm
+  - matplotlib
+  - pandas
+  - pytest
+  - libusb  # open3d runtime dependency
+  - pip:
+      - --find-links https://data.pyg.org/whl/torch-2.5.0+cu124.html
+      - torch-scatter
+      - torch-cluster
+      - torch-sparse
+      - torch_geometric
+      - ftfy
+      - spconv-cu124
+      - laspy
+      - huggingface_hub<1.0
+      - transformers==4.50.3
+      - peft==0.15.2
+      - open3d
