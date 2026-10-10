@@ -5,7 +5,8 @@ Score finished runs from their saved original-resolution predictions.
 
 For every run directory with run_meta.json and result/<scene>_pred.npy, writes
 metrics.json (mIoU, mIoU_rare, mAcc, OA, per-class IoU, tolerance F1 for thin classes)
-and appends one row per run to the output CSV.
+and appends one row per run to the output CSV. With --wandb-project, the same metrics are
+added to the summary of the run's wandb run (test/miou, test/miou_rare, test/bf_joint, ...).
 """
 
 import argparse
@@ -17,6 +18,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from stsd.engines.tracking import log_test_summary
 from stsd.evaluation import boundary_f1, confusion, scores, voxel_majority
 from stsd.utils import CLASS_NAMES
 
@@ -62,6 +64,7 @@ def main():
     parser.add_argument("--data_root", default="data/processed/stsd_1cm")
     parser.add_argument("--output", required=True)
     parser.add_argument("--tol", type=float, default=0.02)
+    parser.add_argument("--wandb-project", default=None, help="also write test metrics to each run's wandb summary")
     args = parser.parse_args()
 
     rows = []
@@ -74,7 +77,11 @@ def main():
         meta = json.load(open(meta_path)) if meta_path.exists() else dict(name=Path(run_dir).name)
         with open(Path(run_dir) / "metrics.json", "w") as f:
             json.dump(result, f, indent=1, default=float)
-        rows.append(flatten(meta, result))
+        row = flatten(meta, result)
+        rows.append(row)
+        if args.wandb_project:
+            metrics = {k: v for k, v in row.items() if k not in meta}
+            log_test_summary(run_dir, args.wandb_project, metrics)
         print(f"{meta.get('name')}: mIoU {result['miou']:.4f}  rare {result['miou_rare']:.4f}")
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(args.output, index=False)

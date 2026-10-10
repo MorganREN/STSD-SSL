@@ -73,11 +73,23 @@ python -m stsd.tools.sweep --matrix a_budget                 # list rows
 python -m stsd.tools.sweep --matrix a_budget --run 0 --extra "max_batch_size_per_gpu=2"
 ```
 
+### Weights & Biases
+
+Enabled by default (`configs/stsd/_base_/runtime.py`, project `stsd-ssl`). Run `wandb login`
+once per machine (or export `WANDB_API_KEY`). Each experiment directory owns one wandb run:
+its id is stored in `<save_path>/wandb_id`, so Slurm requeues resume the same run.
+Runs are grouped as `<protocol>-<method>-<split>` and tagged `method:` / `fold:` / `budget:`
+from `run_meta.json`. Logged: lr and losses per step, epoch averages, validation mIoU /
+per-class IoU, plus GPU utilisation/memory (wandb system metrics). Final original-point test
+metrics are pushed to each run's summary (`test/miou`, `test/miou_rare`, `test/bf_joint`, ...)
+by `stsd.tools.evaluate --wandb-project stsd-ssl`. Disable with `--options enable_wandb=False`
+or log offline with `WANDB_MODE=offline` (sync later with `wandb sync`).
+
 ### Bunya
 
 ```bash
 export STSD_ACCOUNT=a_xxx STSD_ROOT=/scratch/user/$USER/STSD-SSL
-export STSD_ENV_SETUP="source ~/miniforge3/bin/activate stsd-ssl"
+export STSD_ENV_SETUP="source ~/miniforge3/bin/activate stsd-ssl"   # plus `wandb login` once
 scripts/slurm/submit.sh a_leakage smoke 0     # 3-GPU DDP sanity check (debug QoS)
 scripts/slurm/submit.sh a_dapt pretrain       # 4x H100 DDP per fold, data staged to $TMPDIR
 scripts/slurm/submit.sh a_budget finetune     # 1-GPU array tasks, 4 concurrent
@@ -93,7 +105,7 @@ Every fine-tune ends with a test on all original points (predictions on 2 cm vox
 through the stored inverse index). Aggregate and compare:
 
 ```bash
-python -m stsd.tools.evaluate --runs "exp/stsd/ft/*" --output exp/results/ft.csv
+python -m stsd.tools.evaluate --runs "exp/stsd/ft/*" --output exp/results/ft.csv --wandb-project stsd-ssl
 ```
 
 ```python

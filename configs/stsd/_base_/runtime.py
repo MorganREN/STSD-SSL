@@ -12,6 +12,11 @@ clip_grad = 3.0
 empty_cache = False
 enable_amp = True
 amp_dtype = "bfloat16"
-enable_wandb = False
-wandb_project = "stsd-ssl"
 seed = 0
+
+# Weights & Biases: one resumable run per save_path, grouped/tagged from run_meta.json.
+# Disable per run with --options enable_wandb=False; offline: export WANDB_MODE=offline.
+train = dict(type="STSDTrainer")
+enable_wandb = True
+wandb_project = "stsd-ssl"
+wandb_entity = None  # default entity of the logged-in account
