@@ -4,6 +4,10 @@ Segmentation metrics computed from saved predictions.
 Fold-level scores accumulate one confusion matrix over all test points of the fold
 (micro-averaged over scenes); classes absent from both prediction and ground truth
 are excluded from the mean.
+
+Primary metric: `miou_no_person` (11 classes). "person" has a few hundred to a few
+thousand test points in some folds, so its IoU swings between ~3% and ~95% and dominates
+fold-to-fold variance of the 12-class mean; 12-class scores are reported alongside.
 """
 
 import numpy as np
@@ -29,9 +33,13 @@ def scores(conf):
     iou = np.where(union > 0, tp / np.maximum(union, 1), np.nan)
     acc = np.where(gt_count > 0, tp / np.maximum(gt_count, 1), np.nan)
     rare = [CLASS_NAMES.index(c) for c in RARE_CLASSES]
+    keep = [i for i, c in enumerate(CLASS_NAMES) if c != "person"]
+    rare_keep = [i for i in rare if CLASS_NAMES[i] != "person"]
     return dict(
         miou=np.nanmean(iou),
+        miou_no_person=np.nanmean(iou[keep]),
         miou_rare=np.nanmean(iou[rare]),
+        miou_rare_no_person=np.nanmean(iou[rare_keep]),
         macc=np.nanmean(acc),
         oa=tp.sum() / max(conf.sum(), 1),
         iou=dict(zip(CLASS_NAMES, iou)),

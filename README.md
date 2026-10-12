@@ -68,7 +68,9 @@ python tools/train.py --config-file configs/stsd/semseg-ptv3-stsd-ft.py --num-gp
   --options save_path=exp/stsd/ft/demo weight=weights/sonata/pretrain-sonata-v1m1-0-base.pth \
   data.train.label_budget=12 max_batch_size_per_gpu=2
 
-# experiment matrices (paper A): a_dapt, a_leakage, a_budget, a_linear, a_loto
+# experiment matrices (paper A); "*_b3" and a_gate / a_dapt_len need the DAPT checkpoints
+#   a_dapt (8, 4-GPU) | a_leakage (22) | a_brunklaus_repro (2) | a_gate (8) | a_dapt_len (3)
+#   a_budget (50) | a_budget_b3 (30) | a_linear (20) | a_linear_b3 (10) | a_loto (6) | a_loto_b3 (3)
 python -m stsd.tools.sweep --matrix a_budget                 # list rows
 python -m stsd.tools.sweep --matrix a_budget --run 0 --extra "max_batch_size_per_gpu=2"
 ```
@@ -103,9 +105,14 @@ or log offline with `WANDB_MODE=offline` (sync later with `wandb sync`).
 export STSD_ACCOUNT=a_xxx STSD_ROOT=/scratch/user/$USER/STSD-SSL
 export STSD_ENV_SETUP="source ~/miniforge3/bin/activate stsd-ssl"   # plus `wandb login` once
 scripts/slurm/submit.sh a_leakage smoke 0     # 3-GPU DDP sanity check (debug QoS)
-scripts/slurm/submit.sh a_dapt pretrain       # 4x H100 DDP per fold, data staged to $TMPDIR
-scripts/slurm/submit.sh a_budget finetune     # 1-GPU array tasks, 4 concurrent
+scripts/slurm/submit.sh a_dapt pretrain 0     # DAPT fold 0 first (4x H100 DDP, data staged to $TMPDIR)
+scripts/slurm/submit.sh a_gate finetune       # after dapt-f0: B1 vs B3 at b in {3,12} on fold 0
+scripts/slurm/submit.sh a_budget finetune     # B0/B1 label budgets, independent of DAPT
 ```
+
+A finished run leaves `<save_path>/DONE`; rows shared between matrices (e.g. `a_gate` and
+`a_budget*`) are skipped on resubmission. Submit DAPT-dependent matrices (`a_gate`,
+`a_dapt_len`, `*_b3`) only after the corresponding `exp/stsd/pretrain/dapt-f<k>` finished.
 
 Jobs checkpoint every 500 steps; ten minutes before the time limit they requeue themselves and
 resume from `model_last.pth`. Short fine-tunes run as independent single-GPU array tasks (better
@@ -117,12 +124,14 @@ Every fine-tune ends with a test on all original points (predictions on 2 cm vox
 through the stored inverse index). Aggregate and compare:
 
 ```bash
-python -m stsd.tools.evaluate --runs "exp/stsd/ft/*" --output exp/results/ft.csv --wandb-project stsd-ssl
+python -m stsd.tools.evaluate --runs "exp/stsd/ft/*" --output exp/results/ft.csv \
+    --scene-output exp/results/ft_scenes.csv --wandb-project stsd-ssl
+python -m stsd.tools.report --runs exp/results/ft.csv --scenes exp/results/ft_scenes.csv
 ```
 
-```python
-import pandas as pd
-from stsd.evaluation import compare
-df = pd.read_csv("exp/results/ft.csv")
-compare(df, "B3", "B1", metric="miou", by=("budget",))   # paired mean diff, 95% CI, win rate
-```
+Primary metric: `miou_no_person` (11 classes). "person" has only a few hundred test points in
+some folds, so its IoU swings between ~3% and ~95% and dominates the variance of the 12-class
+mean; `miou` (12 classes), `miou_rare_no_person` and the 2 cm tolerance F1 of thin classes
+(`bf_joint`, `bf_small_bolt_hole`, `bf_big_bolt_hole`) are reported alongside. The report
+prints full-label results, paired method comparisons (hierarchical bootstrap over folds),
+fold-level and segment-paired leakage, the label-efficiency curve and the fold-0 decision gate.

@@ -56,6 +56,11 @@ def build_splits(scenes, brunklaus=None, buffer=1.0, val_ratio=0.1):
             "Brunklaus & Reiterer 2026 published split (random.seed(123), 211/53); val carved from train.",
             [make_fold(chain, brunklaus["train"], brunklaus["test"], 0.0, val_ratio)],
         )
+        splits["stsd_brunklaus2026_original"] = (
+            "Brunklaus & Reiterer 2026 protocol as published: train on all 211, model selection on test (val = test). "
+            "Only for reproducing their numbers.",
+            [dict(train=sorted(brunklaus["train"]), val=sorted(brunklaus["test"]), test=sorted(brunklaus["test"]), excluded=[])],
+        )
     return chain, splits
 
 

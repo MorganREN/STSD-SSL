@@ -6,6 +6,8 @@ import numpy as np
 
 from pointcept.datasets.transform import TRANSFORMS, index_operator
 
+from stsd.utils import parse_scene_name
+
 
 @TRANSFORMS.register_module()
 class StrengthToColor(object):
@@ -17,6 +19,26 @@ class StrengthToColor(object):
     def __call__(self, data_dict):
         strength = np.clip(np.asarray(data_dict["strength"], np.float32), 0, self.max_value)
         data_dict["color"] = np.repeat(strength / self.max_value * 255.0, 3, axis=1)
+        return data_dict
+
+
+@TRANSFORMS.register_module()
+class LegacyIntensityToColor(object):
+    """
+    Brunklaus & Reiterer (2026) colour input: raw intensity / 4096 * 255 for every tunnel
+    (so 8-bit circular-tunnel intensities end up in 0..16). Raw intensity is recovered
+    from our per-type normalised `strength` via the per-type scales in meta.json.
+    Only used to reproduce their numbers.
+    """
+
+    def __init__(self, scales, divisor=4096.0):
+        self.scales = scales
+        self.divisor = divisor
+
+    def __call__(self, data_dict):
+        ttype = parse_scene_name(data_dict["name"])[0]
+        raw = np.asarray(data_dict["strength"], np.float32) * self.scales[ttype]
+        data_dict["color"] = np.repeat(np.clip(raw / self.divisor, 0, 1) * 255.0, 3, axis=1)
         return data_dict
 
 

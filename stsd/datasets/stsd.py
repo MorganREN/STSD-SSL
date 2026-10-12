@@ -32,6 +32,7 @@ class STSDDataset(DefaultDataset):
         budget_seed=0,
         samples_per_epoch=None,
         windows_per_scene=1,
+        mmap=True,
         **kwargs,
     ):
         """
@@ -40,6 +41,8 @@ class STSDDataset(DefaultDataset):
         samples_per_epoch: fixed epoch length in samples (random crops); None = one per scene.
         windows_per_scene: >1 enumerates each scene as evenly spaced windows (validation),
             consumed by RingWindowCrop(mode="fraction") through `window_fraction`.
+        mmap: memory-map assets read-only (cheap when a crop selects points first); set False
+            for pipelines that transform whole scenes in place.
         """
         self.split_file = split_file
         self.fold = fold
@@ -47,6 +50,7 @@ class STSDDataset(DefaultDataset):
         self.budget_seed = budget_seed
         self.samples_per_epoch = samples_per_epoch
         self.windows_per_scene = windows_per_scene
+        self.mmap = mmap
         super().__init__(split=split, **kwargs)
 
     def get_scene_names(self):
@@ -67,7 +71,7 @@ class STSDDataset(DefaultDataset):
     def get_data(self, idx):
         data_path = self.data_list[idx % len(self.data_list)]
         data_dict = {
-            asset: np.load(os.path.join(data_path, f"{asset}.npy"), mmap_mode="r")
+            asset: np.load(os.path.join(data_path, f"{asset}.npy"), mmap_mode="r" if self.mmap else None)
             for asset in self.VALID_ASSETS
         }
         data_dict["segment"] = np.asarray(data_dict["segment"], dtype=np.int32)

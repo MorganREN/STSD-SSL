@@ -34,6 +34,33 @@ def hierarchical_bootstrap(diff, num_samples=10000, seed=0):
     return stats
 
 
+def segment_paired(scenes, metric, a, b, num_samples=10000, seed=0):
+    """
+    Same test segment scored under two settings (a, b: dicts of column filters, e.g.
+    dict(method="B1", split="random")). Repeated tests of a segment are averaged first.
+    Returns mean / median difference (a - b), bootstrap CI, share of segments where a > b.
+    """
+    select = lambda f: scenes.loc[np.logical_and.reduce([scenes[k] == v for k, v in f.items()])]
+    pair = pd.concat(
+        [select(a).groupby("scene")[metric].mean().rename("a"), select(b).groupby("scene")[metric].mean().rename("b")],
+        axis=1,
+    ).dropna()
+    diff = (pair["a"] - pair["b"]).to_numpy()
+    if len(diff) == 0:
+        return None
+    rng = np.random.default_rng(seed)
+    boot = rng.choice(diff, (num_samples, len(diff))).mean(1)
+    return dict(
+        n=len(diff),
+        mean=diff.mean(),
+        median=np.median(diff),
+        ci_low=np.percentile(boot, 2.5),
+        ci_high=np.percentile(boot, 97.5),
+        a_better=(diff > 0).mean(),
+        wilcoxon_p=wilcoxon(diff).pvalue if np.any(diff != 0) else np.nan,
+    )
+
+
 def compare(df, method_a, method_b, metric="miou", by=(), num_samples=10000, seed=0):
     """Mean paired difference (a - b) with 95% CI, win rate and Wilcoxon p, per `by` group."""
     diff = paired_differences(df, method_a, method_b, metric, by)

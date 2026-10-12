@@ -42,3 +42,11 @@ def test_strength_to_color_replicates_clipped_intensity():
     out = StrengthToColor(max_value=1.0)(toy_scene())
     assert out["color"].shape[1] == 3 and out["color"].max() <= 255.0
     assert np.allclose(out["color"][:, 0], out["color"][:, 2])
+
+
+def test_legacy_intensity_reproduces_raw_over_4096():
+    from stsd.datasets.transform import LegacyIntensityToColor
+
+    data = dict(name="round-1-12_1", strength=np.array([[1.0], [0.5]], np.float32))
+    out = LegacyIntensityToColor(scales=dict(circular=183.0))(data)
+    assert np.allclose(out["color"][:, 0], np.array([183.0, 91.5]) / 4096 * 255)
