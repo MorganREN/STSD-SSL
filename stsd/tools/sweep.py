@@ -112,9 +112,15 @@ def write_table(runs, path):
             w.writerow([i, r["name"], r["config"], r["num_gpus"], r["save_path"], option_string(r["options"]), json.dumps(r["meta"])])
 
 
+def effective_save_path(run, extra=""):
+    overrides = dict(token.split("=", 1) for token in shlex.split(extra) if "=" in token)
+    return overrides.get("save_path", run["save_path"])
+
+
 def launch(run, num_gpus=None, extra=""):
-    os.makedirs(run["save_path"], exist_ok=True)
-    with open(Path(run["save_path"]) / "run_meta.json", "w") as f:
+    save_path = effective_save_path(run, extra)
+    os.makedirs(save_path, exist_ok=True)
+    with open(Path(save_path) / "run_meta.json", "w") as f:
         json.dump(dict(name=run["name"], **run["meta"]), f)
     cmd = f"{command(run, num_gpus)} {extra}".strip()
     print(cmd, flush=True)
@@ -133,7 +139,7 @@ def main():
 
     runs = matrix(args.matrix)
     if args.save_path is not None:
-        print(runs[args.save_path]["save_path"])
+        print(effective_save_path(runs[args.save_path], args.extra))
         return
     if args.output:
         write_table(runs, args.output)

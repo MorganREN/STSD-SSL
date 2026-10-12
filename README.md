@@ -73,6 +73,18 @@ python -m stsd.tools.sweep --matrix a_budget                 # list rows
 python -m stsd.tools.sweep --matrix a_budget --run 0 --extra "max_batch_size_per_gpu=2"
 ```
 
+Sweep overrides supplied through `--extra` also determine where `run_meta.json` is saved;
+`--save-path <row> --extra "save_path=..."` reports the overridden output directory.
+
+For a one-epoch training check, skip the final full test with `smoke_test=True` and use a
+separate output directory. Validation and checkpoint saving remain enabled:
+
+```bash
+python tools/train.py --config-file configs/stsd/semseg-ptv3-stsd-ft.py --num-gpus 1 \
+  --options smoke_test=True epoch=1 eval_epoch=1 max_batch_size_per_gpu=2 \
+  save_path=exp/stsd/smoke/demo
+```
+
 ### Weights & Biases
 
 Enabled by default (`configs/stsd/_base_/runtime.py`, project `stsd-ssl`). Run `wandb login`
